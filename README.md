@@ -1,9 +1,13 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# next-libsql-rsc-data-issue
 
-## Getting Started
+Currently, when using the libsql client and when passing data loaded from inside a server component down to a client component, you'll get the following warning:
+> Warning: Only plain objects can be passed to Client Components from Server Components. Classes or other objects with methods are not supported.
 
-First, run the development server:
-
+## Reproduction
+1. Make sure you have a turso db with a "user" table with an "id" column.
+2. Copy the contents of the `.env.example` file into a newly created `.env` file
+3. Fill in the two secrets
+4. Start the server:
 ```bash
 npm run dev
 # or
@@ -13,24 +17,22 @@ pnpm dev
 # or
 bun dev
 ```
+5. Open [http://localhost:3000](http://localhost:3000) with your browser
+6. Check the terminal and notice the warning
+7. Also notice the logged prototype of the data
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Explanation & question
+There is an issue open in the Next.js repo [here](https://github.com/vercel/next.js/issues/47447), but it has nothing to do with Next.js.
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+The reason this is happening is React is trying to make sure you're not passing instances of classes down to client components, as methods cannot be serialized.
+However, their implementation for that check doesn't take into account objects that have been created with a `null` prototype (i.e. using `Object.create(null, ..)`.
+I wasn't able to pinpoint where exactly this is being done in the libsql client, but running `Object.getPrototypeOf(..)` on it yields "[Object: null prototype]", so it or something similar must be happening somewhere in the client code.
 
-## Learn More
+I realize this isn't your problem, but I haven't been able to find other issues in libsql/tursodatabase regarding this, which is odd to me as passing down data from a server component to a client component using data from a db call should be a widespread pattern.
+Granted, only Next.js app router users will face this issue.
 
-To learn more about Next.js, take a look at the following resources:
+People are suggesting using `JSON.parse(JSON.stringify(data))` or `structuredClone(data)`, but for large data that adds so much overhead that it seems silly to me, considering it shouldn't be necessary.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+Have others faced this issue, and how does one deal with this?

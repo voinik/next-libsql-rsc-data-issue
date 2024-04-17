@@ -4,6 +4,7 @@ import { DisplayData } from "./DisplayData";
 export default async function Home() {
     const results = (await dbClient.execute('SELECT id FROM user')).rows as unknown as { id: string }[];
     const data = results[0];
+    console.log('Object.getPrototypeOf(data): ', Object.getPrototypeOf(data));
 
     return (
         <main className="flex min-h-screen flex-col items-center justify-between p-24">
